@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row g-4">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-dark text-white fw-bold">
+                <i class="bi bi-person-plus me-1 text-warning"></i> Add New Customer
+            </div>
+            <div class="card-body">
+                <form method="POST" action="/customers">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Full Name / Company</label>
+                        <input type="text" name="name" class="form-control" placeholder="e.g. Engr. Carlos Santos (Letters only)" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Contact Number (11 Digits)</label>
+                        <input type="text" name="contact" class="form-control" placeholder="09XX-XXX-XXXX (Starts with 0)" maxlength="13" required>
+                        <div class="form-text">Must start with 0 and contain exactly 11 digits.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Account Type</label>
+                        <select name="customer_type" class="form-select">
+                            <option value="Retail">Retail</option>
+                            <option value="Contractor">Contractor</option>
+                            <option value="Wholesale">Wholesale</option>
+                        </select>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-success fw-bold">
+                            <i class="bi bi-plus-circle me-1"></i> Add Customer
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-people me-1 text-primary"></i> Customer & Contractor Directory</span>
+                <form method="GET" action="/customers" class="d-flex gap-1">
+                    <input type="text" name="q" class="form-control form-control-sm" placeholder="Search name or phone..." value="{{ search_text }}">
+                    <button type="submit" class="btn btn-sm btn-dark">Search</button>
+                </form>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>ID</th>
+                            <th>Name / Company</th>
+                            <th>Contact</th>
+                            <th>Type</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in customers %}
+                        <tr>
+                            <td class="fw-bold">#{{ c.customer_id }}</td>
+                            <td class="fw-semibold">{{ c.name }}</td>
+                            <td>{{ c.contact }}</td>
+                            <td><span class="badge bg-info text-dark">{{ c.customer_type }}</span></td>
+                            <td>
+                                <form action="/customers/delete/{{ c.customer_id }}" method="POST" onsubmit="return confirm('Delete customer {{ c.name }}?');">
+                                    <button type="submit" class="btn btn-sm btn-danger">
+                                        <i class="bi bi-trash me-1"></i> Delete
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="5" class="text-center text-muted py-4">No customers found.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

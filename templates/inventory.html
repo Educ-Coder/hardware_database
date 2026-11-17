@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block content %}
+<!-- ADD PRODUCT BAR -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-dark text-white fw-bold">
+        <i class="bi bi-plus-circle me-1 text-warning"></i> Register New Hardware Product
+    </div>
+    <div class="card-body">
+        <form method="POST" action="/inventory/add" class="row g-2">
+            <div class="col-md-2"><input type="text" name="sku" class="form-control" placeholder="SKU (HW-109)" required></div>
+            <div class="col-md-3"><input type="text" name="name" class="form-control" placeholder="Product Name" required></div>
+            <div class="col-md-2">
+                <select name="category" class="form-select">
+                    <option>Construction</option>
+                    <option>Electrical</option>
+                    <option>Plumbing</option>
+                    <option>Paint & Finish</option>
+                    <option>Lumber & Boards</option>
+                    <option>Fasteners</option>
+                    <option>Hand Tools</option>
+                </select>
+            </div>
+            <div class="col-md-1"><input type="text" name="unit" class="form-control" placeholder="Unit" required></div>
+            <div class="col-md-2"><input type="number" step="0.01" name="price" class="form-control" placeholder="Price (₱)" required></div>
+            <div class="col-md-1"><input type="number" name="stock" class="form-control" placeholder="Qty" required></div>
+            <div class="col-md-1 d-grid"><button type="submit" class="btn btn-success fw-bold">Add</button></div>
+        </form>
+    </div>
+</div>
+
+<!-- FILTER, SEARCH & MERGE SORT CONTROLS -->
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-2">
+        <form method="GET" action="/inventory" class="row g-2 align-items-center">
+            <div class="col-md-3">
+                <input type="text" name="q" class="form-control form-control-sm" placeholder="Filter by SKU or Name..." value="{{ search_text }}">
+            </div>
+            <div class="col-md-3">
+                <select name="category" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">All Categories</option>
+                    {% for cat in categories %}
+                        <option value="{{ cat }}" {% if cat == selected_category %}selected{% endif %}>{{ cat }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 d-flex gap-1">
+                <button type="submit" class="btn btn-sm btn-dark w-100">Filter</button>
+                <a href="/inventory" class="btn btn-sm btn-outline-secondary">Reset</a>
+            </div>
+            <div class="col-md-4 text-md-end">
+                <div class="btn-group btn-group-sm">
+                    <a href="/inventory?sort=name" class="btn btn-outline-dark">Sort Name</a>
+                    <a href="/inventory?sort=price" class="btn btn-outline-dark">Sort Price</a>
+                    <a href="/inventory?sort=stock" class="btn btn-outline-dark">Sort Stock</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if telemetry %}
+<div class="alert alert-dark py-2 small d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-speedometer2 text-warning me-1"></i> <strong>{{ telemetry.algorithm }} ({{ telemetry.complexity }})</strong> executed on {{ products|length }} records.</span>
+    <span class="font-monospace text-warning">{{ telemetry.steps }} comparisons | {{ telemetry.time_us }} μs</span>
+</div>
+{% endif %}
+
+<!-- INVENTORY TABLE -->
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>SKU</th>
+                    <th>Product Name</th>
+                    <th>Category</th>
+                    <th>Unit Price (Edit)</th>
+                    <th>Stock</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in products %}
+                <tr>
+                    <td class="fw-bold">{{ p.sku }}</td>
+                    <td>{{ p.name }}</td>
+                    <td><span class="badge bg-secondary">{{ p.category }}</span></td>
+                    <td>
+                        <form action="/inventory/update_price/{{ p.sku }}" method="POST" class="d-flex gap-1" style="max-width: 170px;">
+                            <input type="number" step="0.01" name="price" value="{{ p.price }}" class="form-control form-control-sm">
+                            <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
+                        </form>
+                    </td>
+                    <td>
+                        {% if p.stock <= 5 %}
+                            <span class="badge bg-danger">{{ p.stock }} {{ p.unit }}(s)</span>
+                        {% else %}
+                            <span class="badge bg-success">{{ p.stock }} {{ p.unit }}(s)</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="d-flex gap-1">
+                            <form action="/inventory/restock/{{ p.sku }}" method="POST" class="d-flex gap-1">
+                                <input type="number" name="qty" value="10" min="1" class="form-control form-control-sm" style="width: 65px;">
+                                <button type="submit" class="btn btn-sm btn-success">+Stock</button>
+                            </form>
+                            <form action="/inventory/delete/{{ p.sku }}" method="POST" onsubmit="return confirm('Delete {{ p.sku }}?');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="text-center text-muted py-4">No matching products found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

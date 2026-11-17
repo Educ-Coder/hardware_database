@@ -1,0 +1,322 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row g-4">
+    <!-- LEFT: MULTI-ITEM CART & CHECKOUT -->
+    <div class="col-lg-5">
+        <!-- STEP 1: ADD ITEMS TO CART -->
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-dark text-white fw-bold">
+                <i class="bi bi-cart-plus me-1 text-warning"></i> 1. Add Items to POS Cart
+            </div>
+            <div class="card-body">
+                <form method="POST" action="/sales/cart/add" class="row g-2">
+                    <div class="col-md-8">
+                        <label class="form-label small fw-semibold">Hardware Item</label>
+                        <select name="sku" class="form-select" required>
+                            {% for p in products %}
+                                <option value="{{ p.sku }}" {% if p.stock <= 0 %}disabled{% endif %}>
+                                    [{{ p.sku }}] {{ p.name }} — ₱{{ "{:,.2f}".format(p.price) }} ({{ p.stock }} left)
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-semibold">Qty</label>
+                        <input type="number" name="qty" value="1" min="1" class="form-control" required>
+                    </div>
+                    <div class="col-12 d-grid mt-2">
+                        <button type="submit" class="btn btn-primary fw-bold">
+                            <i class="bi bi-bag-plus me-1"></i> Add to Cart
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- STEP 2: CURRENT CART & PAYMENT / INVOICE CHECKOUT -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-basket2 me-1 text-success"></i> 2. Current Order Cart</span>
+                {% if cart %}
+                <form action="/sales/cart/clear" method="POST">
+                    <button type="submit" class="btn btn-sm btn-outline-secondary">Clear Cart</button>
+                </form>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% if cart %}
+                    <table class="table table-sm align-middle mb-3">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Item</th>
+                                <th>Qty</th>
+                                <th>Subtotal</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in cart %}
+                            <tr>
+                                <td class="small fw-semibold">{{ item.name }}</td>
+                                <td>{{ item.qty }}</td>
+                                <td class="fw-bold">₱{{ "{:,.2f}".format(item.subtotal) }}</td>
+                                <td>
+                                    <form action="/sales/cart/remove/{{ item.sku }}" method="POST">
+                                        <button type="submit" class="btn btn-sm btn-link text-danger p-0"><i class="bi bi-x-lg"></i></button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    <div class="d-flex justify-content-between align-items-center bg-light p-2 rounded mb-3">
+                        <span class="fw-bold">GRAND TOTAL:</span>
+                        <span class="fs-5 fw-bold text-success">₱{{ "{:,.2f}".format(cart_total) }}</span>
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center small py-3 mb-3 border rounded">Cart is empty. Add items above to start an order.</p>
+                {% endif %}
+
+                <form method="POST" action="/sales/checkout">
+                    <div class="mb-2">
+                        <label class="form-label small fw-semibold">Customer / Contractor</label>
+                        <select name="customer_name" class="form-select" required>
+                            {% for c in customers %}
+                                <option value="{{ c.name }}">{{ c.name }} ({{ c.customer_type }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small fw-semibold">Transaction Type</label>
+                        <select name="payment_method" id="paymentMethodSelect" class="form-select" onchange="toggleDueDate()">
+                            <option value="Cash">Direct Sale — Cash</option>
+                            <option value="Debit/Card">Direct Sale — Debit / Card</option>
+                            <option value="Credit Invoice">Credit Invoice / Loan (Pay Later)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3 d-none" id="dueDateGroup">
+                        <label class="form-label small fw-semibold text-danger">Loan Repayment Due Date</label>
+                        <input type="date" name="due_date" class="form-control border-danger">
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-success fw-bold" {% if not cart %}disabled{% endif %}>
+                            <i class="bi bi-check2-circle me-1"></i> Complete Transaction
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT: SEPARATED TABS FOR POS SALES VS CREDIT INVOICES -->
+    <div class="col-lg-7">
+        <ul class="nav nav-tabs mb-3 fw-bold" id="ledgerTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link {% if active_tab != 'credit' %}active{% endif %}" id="pos-tab" data-bs-toggle="tab" data-bs-target="#pos-pane" type="button" role="tab">
+                    <i class="bi bi-cash-stack text-success me-1"></i> POS Sales (Cash & Debit)
+                    <span class="badge bg-success ms-1">{{ pos_sales|length }}</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link {% if active_tab == 'credit' %}active{% endif %}" id="credit-tab" data-bs-toggle="tab" data-bs-target="#credit-pane" type="button" role="tab">
+                    <i class="bi bi-file-earmark-text text-danger me-1"></i> Credit Invoices & Loans
+                    <span class="badge bg-danger ms-1">{{ credit_invoices|length }}</span>
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content">
+            <!-- TAB 1: DIRECT POS SALES -->
+            <div class="tab-pane fade {% if active_tab != 'credit' %}show active{% endif %}" id="pos-pane" role="tabpanel">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-receipt me-1 text-success"></i> Completed Cash & Debit Sales</span>
+                        <span class="badge bg-secondary">{{ pos_sales|length }} Record(s)</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 small">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Receipt</th>
+                                    <th>Customer</th>
+                                    <th>Item (Qty)</th>
+                                    <th>Amount</th>
+                                    <th>Method</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for s in pos_sales %}
+                                <tr>
+                                    <td class="fw-bold">{{ s.invoice_no }}<div class="text-muted" style="font-size: 0.72rem;">{{ s.timestamp }}</div></td>
+                                    <td>{{ s.customer_name }}</td>
+                                    <td>{{ s.product_name }} <span class="badge bg-light text-dark border">x{{ s.qty_sold }}</span></td>
+                                    <td class="fw-bold text-success">₱{{ "{:,.2f}".format(s.total_amount) }}</td>
+                                    <td><span class="badge bg-success-subtle text-success border border-success">{{ s.payment_method }}</span></td>
+                                    <td>
+                                        <div class="d-flex gap-1">
+                                            <button type="button" class="btn btn-sm btn-outline-dark" title="Print Receipt"
+                                                    data-inv="{{ s.invoice_no }}"
+                                                    data-cust="{{ s.customer_name }}"
+                                                    data-item="{{ s.product_name }}"
+                                                    data-qty="{{ s.qty_sold }}"
+                                                    data-total="{{ '{:,.2f}'.format(s.total_amount) }}"
+                                                    data-method="{{ s.payment_method }}"
+                                                    data-status="{{ s.payment_status }}"
+                                                    data-due="{{ s.due_date }}"
+                                                    data-date="{{ s.timestamp }}"
+                                                    onclick="showReceipt(this)">
+                                                <i class="bi bi-printer"></i>
+                                            </button>
+                                            <form action="/sales/delete/{{ s.sale_id }}" method="POST" onsubmit="return confirm('Void receipt {{ s.invoice_no }} and restore stock?');">
+                                                <button type="submit" class="btn btn-sm btn-danger" title="Void & Delete">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="6" class="text-center text-muted py-4">No Cash or Debit POS sales recorded yet.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: CREDIT INVOICES & LOANS -->
+            <div class="tab-pane fade {% if active_tab == 'credit' %}show active{% endif %}" id="credit-pane" role="tabpanel">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-journal-text me-1 text-danger"></i> Customer Credit Invoices & Loan Accounts</span>
+                        <span class="badge bg-danger">{{ credit_invoices|length }} Invoice(s)</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 small">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Invoice #</th>
+                                    <th>Borrower</th>
+                                    <th>Item (Qty)</th>
+                                    <th>Loan Amount</th>
+                                    <th>Repayment Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for s in credit_invoices %}
+                                <tr>
+                                    <td class="fw-bold">{{ s.invoice_no }}<div class="text-muted" style="font-size: 0.72rem;">{{ s.timestamp }}</div></td>
+                                    <td class="fw-semibold">{{ s.customer_name }}</td>
+                                    <td>{{ s.product_name }} <span class="badge bg-light text-dark border">x{{ s.qty_sold }}</span></td>
+                                    <td class="fw-bold text-danger">₱{{ "{:,.2f}".format(s.total_amount) }}</td>
+                                    <td>
+                                        {% if s.payment_status == 'Paid' %}
+                                            <span class="badge bg-success">Settled / Paid</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Unpaid</span>
+                                            <div class="text-danger fw-semibold" style="font-size: 0.72rem;">Due: {{ s.due_date }}</div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="d-flex gap-1">
+                                            {% if s.payment_status != 'Paid' %}
+                                            <form action="/sales/mark_paid/{{ s.sale_id }}" method="POST">
+                                                <button type="submit" class="btn btn-sm btn-success" title="Settle Loan">
+                                                    <i class="bi bi-check-lg"></i> Paid
+                                                </button>
+                                            </form>
+                                            {% endif %}
+                                            <button type="button" class="btn btn-sm btn-outline-dark" title="Print Invoice"
+                                                    data-inv="{{ s.invoice_no }}"
+                                                    data-cust="{{ s.customer_name }}"
+                                                    data-item="{{ s.product_name }}"
+                                                    data-qty="{{ s.qty_sold }}"
+                                                    data-total="{{ '{:,.2f}'.format(s.total_amount) }}"
+                                                    data-method="{{ s.payment_method }}"
+                                                    data-status="{{ s.payment_status }}"
+                                                    data-due="{{ s.due_date }}"
+                                                    data-date="{{ s.timestamp }}"
+                                                    onclick="showReceipt(this)">
+                                                <i class="bi bi-printer"></i>
+                                            </button>
+                                            <form action="/sales/delete/{{ s.sale_id }}" method="POST" onsubmit="return confirm('Void invoice {{ s.invoice_no }} and restore stock?');">
+                                                <button type="submit" class="btn btn-sm btn-danger" title="Void & Delete">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="6" class="text-center text-muted py-4">No Credit Invoices or customer loans recorded yet.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- PRINTABLE RECEIPT / INVOICE MODAL -->
+<div class="modal fade" id="receiptModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white py-2">
+                <h6 class="modal-title fw-bold"><i class="bi bi-receipt me-1"></i> Official Receipt / Invoice</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body font-monospace small" id="printableReceiptArea">
+                <div class="text-center border-bottom pb-2 mb-2">
+                    <div class="fw-bold fs-6">HARDWARE PRO POS</div>
+                    <div class="text-muted">Official Transaction Record</div>
+                </div>
+                <div><strong>Reference:</strong> <span id="recInv"></span></div>
+                <div><strong>Date:</strong> <span id="recDate"></span></div>
+                <div><strong>Customer:</strong> <span id="recCust"></span></div>
+                <hr class="my-2">
+                <div><strong>Item:</strong> <span id="recItem"></span></div>
+                <div><strong>Quantity:</strong> <span id="recQty"></span></div>
+                <div class="fs-6 fw-bold mt-2">TOTAL: ₱<span id="recTotal"></span></div>
+                <hr class="my-2">
+                <div><strong>Type:</strong> <span id="recMethod"></span></div>
+                <div><strong>Status:</strong> <span id="recStatus"></span></div>
+                <div><strong>Due Date:</strong> <span id="recDue"></span></div>
+            </div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-sm btn-primary w-100" onclick="window.print()">
+                    <i class="bi bi-printer me-1"></i> Print Document
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function toggleDueDate() {
+        const method = document.getElementById('paymentMethodSelect').value;
+        const dueGroup = document.getElementById('dueDateGroup');
+        if (method === 'Credit Invoice') {
+            dueGroup.classList.remove('d-none');
+        } else {
+            dueGroup.classList.add('d-none');
+        }
+    }
+
+    function showReceipt(btn) {
+        document.getElementById('recInv').textContent = btn.dataset.inv;
+        document.getElementById('recCust').textContent = btn.dataset.cust;
+        document.getElementById('recItem').textContent = btn.dataset.item;
+        document.getElementById('recQty').textContent = btn.dataset.qty;
+        document.getElementById('recTotal').textContent = btn.dataset.total;
+        document.getElementById('recMethod').textContent = btn.dataset.method;
+        document.getElementById('recStatus').textContent = btn.dataset.status;
+        document.getElementById('recDue').textContent = btn.dataset.due;
+        document.getElementById('recDate').textContent = btn.dataset.date;
+        new bootstrap.Modal(document.getElementById('receiptModal')).show();
+    }
+</script>
+{% endblock %}
