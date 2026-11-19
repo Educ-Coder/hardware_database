@@ -48,12 +48,13 @@
     <div class="card-body">
         <form method="GET" action="/" class="row g-2">
             <div class="col-md-5">
-                <input type="text" name="search" class="form-control" placeholder="Enter SKU (e.g. HW-101) or Exact Item Name..." value="{{ search_query }}">
+                <input type="text" name="search" class="form-control" placeholder="Enter SKU, Prefix (e.g. 'Rep'), or Exact Name..." value="{{ search_query }}">
             </div>
             <div class="col-md-4">
                 <select name="mode" class="form-select">
-                    <option value="sku">SKU Lookup — Hash Table O(1)</option>
-                    <option value="name">Exact Name — Binary Search O(log n)</option>
+                    <option value="sku" {% if search_mode == 'sku' %}selected{% endif %}>SKU Lookup — Hash Table O(1)</option>
+                    <option value="trie" {% if search_mode == 'trie' %}selected{% endif %}>Prefix Autocomplete — Trie Tree O(L)</option>
+                    <option value="name" {% if search_mode == 'name' %}selected{% endif %}>Exact Name — Binary Search O(log n)</option>
                 </select>
             </div>
             <div class="col-md-3 d-grid">
@@ -63,13 +64,28 @@
 
         {% if search_query %}
             <div class="mt-3">
-                {% if search_result %}
-                    <div class="alert alert-success mb-0">
-                        <strong>Found:</strong> [{{ search_result.sku }}] {{ search_result.name }} — 
-                        <strong>₱{{ "{:,.2f}".format(search_result.price) }}</strong> | Stock: <strong>{{ search_result.stock }} {{ search_result.unit }}(s)</strong>
-                    </div>
+                {% if search_mode == 'trie' %}
+                    {% if trie_results %}
+                        <div class="alert alert-success mb-0">
+                            <strong>Trie Prefix Matches ({{ trie_results|length }}):</strong>
+                            <ul class="mb-0 mt-1">
+                                {% for item in trie_results %}
+                                    <li><strong>[{{ item.sku }}]</strong> {{ item.name }} — ₱{{ "{:,.2f}".format(item.price) }} ({{ item.stock }} {{ item.unit }}s)</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-danger mb-0">No products start with prefix "{{ search_query }}".</div>
+                    {% endif %}
                 {% else %}
-                    <div class="alert alert-danger mb-0">No product found matching "{{ search_query }}".</div>
+                    {% if search_result %}
+                        <div class="alert alert-success mb-0">
+                            <strong>Found:</strong> [{{ search_result.sku }}] {{ search_result.name }} — 
+                            <strong>₱{{ "{:,.2f}".format(search_result.price) }}</strong> | Stock: <strong>{{ search_result.stock }} {{ search_result.unit }}(s)</strong>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-danger mb-0">No product found matching "{{ search_query }}".</div>
+                    {% endif %}
                 {% endif %}
             </div>
         {% endif %}

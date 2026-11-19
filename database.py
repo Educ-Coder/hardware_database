@@ -1,5 +1,6 @@
 import sqlite3
 from datetime import datetime
+from werkzeug.security import generate_password_hash, check_password_hash
 
 DB_NAME = "hardware.db"
 
@@ -46,6 +47,27 @@ def init_db():
             FOREIGN KEY (sku) REFERENCES products (sku)
         )
     """)
+
+    # Table 4: System Users (Authentication)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            user_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            full_name TEXT NOT NULL,
+            role TEXT NOT NULL,
+            password_hash TEXT NOT NULL
+        )
+    """)
+
+    if cursor.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 0:
+        sample_users = [
+            ("admin", "RK Store Manager", "Admin", generate_password_hash("admin123")),
+            ("cashier", "Front Desk Cashier", "Cashier", generate_password_hash("cashier123")),
+        ]
+        cursor.executemany(
+            "INSERT INTO users (username, full_name, role, password_hash) VALUES (?, ?, ?, ?)",
+            sample_users
+        )
     
     if cursor.execute("SELECT COUNT(*) FROM products").fetchone()[0] == 0:
         sample_items = [
@@ -77,12 +99,12 @@ def init_db():
 
     if cursor.execute("SELECT COUNT(*) FROM sales").fetchone()[0] == 0:
         sample_sales = [
-            ("INV-1001", "HW-101", "Republic Portland Cement (40kg)", "Engr. Marco Reyes (Reyes Builders)", 10, 2450.00, "Cash", "Paid", "N/A", "2026-11-12 09:15 AM"),
-            ("INV-1002", "HW-102", "Deformed Steel Bar 10mm x 6m", "San Fernando Construction Corp.", 15, 2775.00, "Debit/Card", "Paid", "N/A", "2026-11-13 02:30 PM"),
-            ("INV-1003", "HW-103", "Marine Plywood 1/4 x 4 x 8", "Walk-in Cash Customer", 4, 1840.00, "Cash", "Paid", "N/A", "2026-11-14 11:05 AM"),
+            ("RCP-1001", "HW-101", "Republic Portland Cement (40kg)", "Engr. Marco Reyes (Reyes Builders)", 10, 2450.00, "Cash", "Paid", "N/A", "2026-11-12 09:15 AM"),
+            ("RCP-1002", "HW-102", "Deformed Steel Bar 10mm x 6m", "San Fernando Construction Corp.", 15, 2775.00, "Cash", "Paid", "N/A", "2026-11-13 02:30 PM"),
+            ("RCP-1003", "HW-103", "Marine Plywood 1/4 x 4 x 8", "Walk-in Cash Customer", 4, 1840.00, "Cash", "Paid", "N/A", "2026-11-14 11:05 AM"),
             ("INV-1004", "HW-106", "Boysen Permacoat Latex White", "Engr. Marco Reyes (Reyes Builders)", 6, 4170.00, "Credit Invoice", "Unpaid (Loan)", "2026-12-01", "2026-11-15 04:20 PM"),
-            ("INV-1005", "HW-107", "Phelps Dodge THHN Wire #12", "San Fernando Construction Corp.", 80, 3360.00, "Debit/Card", "Paid", "N/A", "2026-11-16 10:45 AM"),
-            ("INV-1006", "HW-101", "Republic Portland Cement (40kg)", "Juan Dela Cruz", 22, 5390.00, "Cash", "Paid", "N/A", "2026-11-17 01:10 PM"),
+            ("RCP-1005", "HW-107", "Phelps Dodge THHN Wire #12", "San Fernando Construction Corp.", 80, 3360.00, "Cash", "Paid", "N/A", "2026-11-16 10:45 AM"),
+            ("RCP-1006", "HW-101", "Republic Portland Cement (40kg)", "Juan Dela Cruz", 22, 5390.00, "Cash", "Paid", "N/A", "2026-11-17 01:10 PM"),
         ]
         cursor.executemany(
             """INSERT INTO sales 
@@ -93,6 +115,16 @@ def init_db():
         
     conn.commit()
     conn.close()
+
+# --- USER AUTHENTICATION ---
+def verify_user(username, password):
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    user = conn.execute("SELECT * FROM users WHERE username = ?", (username.strip().lower(),)).fetchone()
+    conn.close()
+    if user and check_password_hash(user["password_hash"], password):
+        return dict(user)
+    return None
 
 # --- PRODUCT CRUD ---
 def get_all_products():

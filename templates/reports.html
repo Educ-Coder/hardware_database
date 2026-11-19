@@ -33,47 +33,55 @@
     </div>
 </div>
 
-<div class="row g-4">
-    <div class="col-md-6">
+<div class="row g-4 mb-4">
+    <!-- CATEGORY REVENUE DOUGHNUT CHART -->
+    <div class="col-md-5">
         <div class="card border-0 shadow-sm h-100">
-            <div class="card-header bg-danger text-white fw-bold">
-                <i class="bi bi-exclamation-circle me-1"></i> Unpaid Credit Invoices (Accounts Receivable)
+            <div class="card-header bg-white fw-bold">
+                <i class="bi bi-pie-chart-fill text-primary me-1"></i> Sales Volume by Category
             </div>
-            <div class="card-body">
-                <table class="table table-sm mb-0">
-                    <thead><tr><th>Invoice</th><th>Customer</th><th>Due Date</th><th>Amount</th></tr></thead>
-                    <tbody>
-                        {% for u in unpaid_invoices %}
-                        <tr>
-                            <td class="fw-bold">{{ u.invoice_no }}</td>
-                            <td>{{ u.customer_name }}</td>
-                            <td class="text-danger fw-semibold">{{ u.due_date }}</td>
-                            <td class="fw-bold">₱{{ "{:,.2f}".format(u.total_amount) }}</td>
-                        </tr>
-                        {% else %}
-                        <tr><td colspan="4" class="text-center text-muted py-3">All customer invoices are settled!</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            <div class="card-body d-flex align-items-center justify-content-center">
+                {% if cat_labels %}
+                    <div style="height: 250px; width: 100%;">
+                        <canvas id="categoryDoughnutChart"
+                                data-labels='{{ cat_labels | tojson }}'
+                                data-values='{{ cat_values | tojson }}'></canvas>
+                    </div>
+                {% else %}
+                    <p class="text-muted small mb-0">No sales recorded yet.</p>
+                {% endif %}
             </div>
         </div>
     </div>
 
-    <div class="col-md-6">
+    <!-- TOP-SELLING PRODUCTS (MERGE SORT O(n log n)) -->
+    <div class="col-md-7">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-header bg-dark text-white fw-bold">
-                <i class="bi bi-gem me-1 text-info"></i> Highest-Priced Hardware Items (Merge Sort O(n log n))
+                <i class="bi bi-trophy-fill text-warning me-1"></i> Top-Selling Products (Merge Sort O(n log n))
             </div>
             <div class="card-body">
-                <table class="table table-sm mb-0">
-                    <thead><tr><th>SKU</th><th>Name</th><th>Unit Price</th></tr></thead>
-                    <tbody>
-                        {% for item in highest_priced %}
+                <table class="table table-sm align-middle mb-0">
+                    <thead>
                         <tr>
+                            <th>Rank</th>
+                            <th>SKU</th>
+                            <th>Product Name</th>
+                            <th>Units Sold</th>
+                            <th>Total Revenue</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in top_sellers %}
+                        <tr>
+                            <td class="fw-bold">#{{ loop.index }}</td>
                             <td>{{ item.sku }}</td>
                             <td>{{ item.name }}</td>
-                            <td class="fw-bold">₱{{ "{:,.2f}".format(item.price) }}</td>
+                            <td><span class="badge bg-primary">{{ item.units }}</span></td>
+                            <td class="fw-bold text-success">₱{{ "{:,.2f}".format(item.revenue) }}</td>
                         </tr>
+                        {% else %}
+                        <tr><td colspan="5" class="text-center text-muted py-3">No sales recorded yet.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -81,4 +89,56 @@
         </div>
     </div>
 </div>
+
+<!-- UNPAID INVOICES SUMMARY -->
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-danger text-white fw-bold">
+        <i class="bi bi-exclamation-circle me-1"></i> Unpaid Credit Invoices (Accounts Receivable)
+    </div>
+    <div class="card-body">
+        <table class="table table-sm mb-0">
+            <thead><tr><th>Invoice</th><th>Customer</th><th>Due Date</th><th>Amount</th></tr></thead>
+            <tbody>
+                {% for u in unpaid_invoices %}
+                <tr>
+                    <td class="fw-bold">{{ u.invoice_no }}</td>
+                    <td>{{ u.customer_name }}</td>
+                    <td class="text-danger fw-semibold">{{ u.due_date }}</td>
+                    <td class="fw-bold">₱{{ "{:,.2f}".format(u.total_amount) }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="text-center text-muted py-3">All customer invoices are settled!</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script>
+    const catCanvas = document.getElementById('categoryDoughnutChart');
+    if (catCanvas) {
+        const ctx = catCanvas.getContext('2d');
+        const labels = JSON.parse(catCanvas.dataset.labels);
+        const values = JSON.parse(catCanvas.dataset.values);
+
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: ['#0d6efd', '#198754', '#ffc107', '#dc3545', '#6f42c1', '#20c997', '#fd7e14']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'right' }
+                }
+            }
+        });
+    }
+</script>
 {% endblock %}

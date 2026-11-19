@@ -2,128 +2,135 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Bacolor Builders Hardware — ERP & POS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RK HARDWARE — POS & Inventory</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
-        body { min-height: 100vh; display: flex; background-color: #f4f6f9; }
+        body { background-color: #f4f6f9; overflow-x: hidden; }
         .sidebar {
             width: 250px;
-            background-color: #1e293b;
+            min-height: 100vh;
+            background-color: #1e242b;
             color: #fff;
             flex-shrink: 0;
-            display: flex;
-            flex-direction: column;
         }
         .sidebar .nav-link {
-            color: #cbd5e1;
+            color: #adb5bd;
             padding: 12px 20px;
-            font-weight: 500;
             border-radius: 6px;
-            margin: 3px 12px;
+            margin: 4px 12px;
+            font-weight: 500;
             display: flex;
             align-items: center;
             gap: 10px;
         }
-        .sidebar .nav-link:hover { background-color: #334155; color: #fff; }
-        .sidebar .nav-link.active { background-color: #f59e0b; color: #0f172a; font-weight: 700; }
-        .main-content { flex-grow: 1; display: flex; flex-direction: column; }
+        .sidebar .nav-link:hover { background-color: #2b323b; color: #fff; }
+        .sidebar .nav-link.active { background-color: #ffc107; color: #1e242b; font-weight: 700; }
+        .main-content { flex-grow: 1; padding: 24px; }
     </style>
 </head>
 <body>
+<div class="d-flex">
+    <!-- PERSISTENT LEFT SIDEBAR -->
+    <nav class="sidebar d-flex flex-column justify-content-between py-3">
+        <div>
+            <div class="px-4 py-3 border-bottom border-secondary mb-3">
+                <h5 class="mb-0 fw-bold text-warning"><i class="bi bi-tools me-2"></i>RK HARDWARE</h5>
+                <small class="text-secondary">Inventory & POS System</small>
+            </div>
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link {% if active_page == 'dashboard' %}active{% endif %}" href="/">
+                        <i class="bi bi-speedometer2"></i> Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if active_page == 'sales' %}active{% endif %}" href="/sales">
+                        <i class="bi bi-cart-check"></i> Sales & POS
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if active_page == 'invoices' %}active{% endif %}" href="/invoices">
+                        <i class="bi bi-file-earmark-text"></i> Credit Invoices
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if active_page == 'inventory' %}active{% endif %}" href="/inventory">
+                        <i class="bi bi-box-seam"></i> Inventory
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if active_page == 'customers' %}active{% endif %}" href="/customers">
+                        <i class="bi bi-people"></i> Customers
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if active_page == 'reports' %}active{% endif %}" href="/reports">
+                        <i class="bi bi-graph-up-arrow"></i> Reports
+                    </a>
+                </li>
+            </ul>
+        </div>
 
-<!-- LEFT SIDEBAR -->
-<aside class="sidebar shadow">
-    <div class="p-4 border-bottom border-secondary">
-        <h5 class="mb-0 fw-bold text-warning"><i class="bi bi-tools me-2"></i>BACOLOR HARDWARE</h5>
-        <small class="text-secondary">Inventory & POS System</small>
-    </div>
+        <!-- STACK UNDO + LOGGED-IN USER + LOGOUT IN SIDEBAR FOOTER -->
+        <div class="px-3 pt-3 border-top border-secondary">
+            <form action="/undo" method="POST" class="mb-3">
+                <button type="submit" class="btn btn-outline-warning btn-sm w-100" {% if not can_undo %}disabled{% endif %}>
+                    <i class="bi bi-arrow-counterclockwise me-1"></i> Undo Last Action
+                </button>
+            </form>
 
-    <nav class="nav flex-column mt-3">
-        <a href="/" class="nav-link {% if active_page == 'dashboard' %}active{% endif %}">
-            <i class="bi bi-speedometer2"></i> Dashboard
-        </a>
-        <a href="/sales" class="nav-link {% if active_page == 'sales' %}active{% endif %}">
-            <i class="bi bi-cart-check"></i> Sales & POS
-        </a>
-        <a href="/inventory" class="nav-link {% if active_page == 'inventory' %}active{% endif %}">
-            <i class="bi bi-box-seam"></i> Inventory & Prices
-        </a>
-        <a href="/customers" class="nav-link {% if active_page == 'customers' %}active{% endif %}">
-            <i class="bi bi-people"></i> Customers
-        </a>
-        <a href="/reports" class="nav-link {% if active_page == 'reports' %}active{% endif %}">
-            <i class="bi bi-bar-chart-line"></i> Reports
-        </a>
+            <div class="bg-dark rounded p-2 mb-2 small d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="fw-bold text-white"><i class="bi bi-person-badge text-warning me-1"></i>{{ session.get('full_name', 'Staff') }}</div>
+                    <span class="badge bg-secondary" style="font-size: 0.68rem;">{{ session.get('role', 'User') }}</span>
+                </div>
+                <a href="/logout" class="btn btn-sm btn-outline-danger" title="Sign Out">
+                    <i class="bi bi-box-arrow-right"></i>
+                </a>
+            </div>
+        </div>
     </nav>
 
-    <div class="mt-auto p-3 border-top border-secondary">
-        <form action="/undo" method="POST" class="d-grid">
-            <button class="btn btn-outline-warning btn-sm" {% if not can_undo %}disabled{% endif %}>
-                <i class="bi bi-arrow-counterclockwise"></i> Undo Last Action (Stack)
-            </button>
-        </form>
-    </div>
-</aside>
-
-<!-- MAIN WINDOW AREA -->
-<div class="main-content">
-    <header class="bg-white shadow-sm px-4 py-3 d-flex justify-content-between align-items-center">
-        <h5 class="mb-0 fw-bold text-dark text-capitalize">{{ active_page }} Overview</h5>
-        <span class="badge bg-dark">DSA Engine: Hash Table + Merge Sort + Binary Search + Stack</span>
-    </header>
-
-    <main class="p-4">
+    <!-- RIGHT WORKSPACE -->
+    <div class="main-content">
         {% if message %}
-            <div class="alert alert-success alert-dismissible fade show py-2 shadow-sm fw-semibold" role="alert">
-                <i class="bi bi-check-circle-fill me-2"></i> {{ message }}
-                <button type="button" class="btn-close py-2" data-bs-dismiss="alert"></button>
+            <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+                <i class="bi bi-check-circle-fill me-2"></i>{{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         {% endif %}
 
         {% block content %}{% endblock %}
-    </main>
+    </div>
 </div>
 
-<!-- VALIDATION ERROR POP-UP DIALOG (MODAL) -->
-{% if error %}
-<div class="modal fade" id="errorModal" tabindex="-1" aria-labelledby="errorModalLabel" aria-hidden="true">
+<!-- POP-UP VALIDATION ERROR MODAL -->
+<div class="modal fade" id="errorModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg">
+        <div class="modal-content border-danger border-2 shadow">
             <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title fw-bold" id="errorModalLabel">
-                    <i class="bi bi-exclamation-triangle-fill me-2"></i>Input Validation Error
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h5 class="modal-title fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i>Input Validation Error</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body py-4 text-center">
-                <i class="bi bi-x-circle text-danger" style="font-size: 3rem;"></i>
-                <p class="fs-5 fw-semibold text-dark mt-3 mb-0">{{ error }}</p>
+            <div class="modal-body fs-6 text-dark py-4">
+                {{ error }}
             </div>
-            <div class="modal-footer justify-content-center border-0 pb-4">
-                <button type="button" class="btn btn-danger px-4 fw-bold" data-bs-dismiss="modal">
-                    Okay, Fix Input
-                </button>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-danger fw-bold px-4" data-bs-dismiss="modal">OK, Got It</button>
             </div>
         </div>
     </div>
 </div>
-{% endif %}
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-
 {% if error %}
 <script>
     document.addEventListener("DOMContentLoaded", function () {
-        var errorModal = new bootstrap.Modal(document.getElementById("errorModal"));
-        errorModal.show();
+        new bootstrap.Modal(document.getElementById("errorModal")).show();
     });
 </script>
 {% endif %}
-
-</body>
-</html>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

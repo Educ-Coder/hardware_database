@@ -85,3 +85,49 @@ def binary_search_with_telemetry(products, target_name):
         "time_us": round(elapsed_us, 2)
     }
     return found, telemetry
+
+# 4. TRIE (PREFIX TREE): O(L) Prefix Search by Product Name or SKU
+class TrieNode:
+    def __init__(self):
+        self.children = {}
+        self.products = []
+
+class ProductTrie:
+    def __init__(self):
+        self.root = TrieNode()
+
+    def insert(self, key_text, product):
+        node = self.root
+        for ch in key_text.lower():
+            if ch not in node.children:
+                node.children[ch] = TrieNode()
+            node = node.children[ch]
+            if product not in node.products:
+                node.products.append(product)
+
+    def search_prefix(self, prefix):
+        node = self.root
+        steps = 0
+        for ch in prefix.lower():
+            steps += 1
+            if ch not in node.children:
+                return [], steps
+            node = node.children[ch]
+        return node.products, steps
+
+def trie_prefix_search_with_telemetry(products, prefix):
+    start = time.perf_counter()
+    trie = ProductTrie()
+    for p in products:
+        trie.insert(p["name"], p)
+        trie.insert(p["sku"], p)
+
+    matches, steps = trie.search_prefix(prefix.strip())
+    elapsed_us = (time.perf_counter() - start) * 1_000_000
+    telemetry = {
+        "algorithm": "Trie Prefix Tree",
+        "complexity": "O(L)",
+        "steps": steps,
+        "time_us": round(elapsed_us, 2)
+    }
+    return matches, telemetry
